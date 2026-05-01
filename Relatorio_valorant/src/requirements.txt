@@ -4,3 +4,5 @@ sqlalchemy
 psycopg2-binary
 plotly
 python-dotenv
+requests
+beautifulsoup4
