@@ -86,11 +86,10 @@ def transform_data_pre_sql(df: pd.DataFrame, region: str, year: int, tournament_
         df_transformed['KAST'] /= 100.0
 
     if 'HS%' in df_transformed.columns:
-            df_transformed['HS%'] = df_transformed['HS%'].str.replace('%', '').astype(float) / 100.0
+        df_transformed['HS%'] = pd.to_numeric(df_transformed['HS%'].str.replace('%', ''), errors='coerce') / 100.0
 
     if 'CL%' in df_transformed.columns:
-            df_transformed.loc[df_transformed['CL%'] == '', 'CL%'] = '0%'
-            df_transformed['CL%'] = df_transformed['CL%'].str.replace('%', '').astype(float) / 100.0
+        df_transformed['CL%'] = pd.to_numeric(df_transformed['CL%'].str.replace('%', ''), errors='coerce') / 100.0
 
     if 'CL' in df_transformed.columns:
             df_transformed.loc[df_transformed['CL'] == '', 'CL'] = '0/0'
@@ -127,7 +126,7 @@ def sanitize_dataframe(df):
         return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
     # Aplicar limpeza em todas as colunas de texto
-    for col in df_clean.select_dtypes(include=['object']).columns:
+    for col in df_clean.select_dtypes(include=['object', 'string']).columns:
         df_clean[col] = df_clean[col].astype(str).apply(remove_accents)
         # Remove caracteres residuais que o banco possa rejeitar
         df_clean[col] = df_clean[col].str.replace(r'[^\x00-\x7F]+', '', regex=True)
