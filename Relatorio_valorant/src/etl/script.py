@@ -69,10 +69,12 @@ def transform_data_pre_sql(df: pd.DataFrame, region: str, year: int, tournament_
     logging.info(f"Transformando dados de {tournament_name} ({year})...")
     df_transformed = df.copy()
 
+    df_transformed = df_transformed.replace(r'^\s*$', pd.NA, regex=True)
+
     df_transformed = df_transformed.drop(columns=['Agents'], errors='ignore')
     # Limpar a coluna KAST
     if 'KAST' in df_transformed.columns:
-        df_transformed['KAST'] = df_transformed['KAST'].str.replace('%', '', regex=False)
+        df_transformed['KAST'] = df_transformed['KAST'].astype(str).str.replace('%', '', regex=False)
 
     # Colunas para converter para tipo numérico
     cols_to_convert = ['R', 'ACS', 'K:D', 'ADR', 'KPR', 'APR', 'FKPR', 'FDPR', 'K', 'D', 'A', 'FK', 'FD', '+/-', 'KAST', 'KMax', 'Rnd', 'R2.0']
@@ -86,16 +88,24 @@ def transform_data_pre_sql(df: pd.DataFrame, region: str, year: int, tournament_
         df_transformed['KAST'] /= 100.0
 
     if 'HS%' in df_transformed.columns:
+        df_transformed['HS%'] = df_transformed['HS%'].astype(str).str.replace('%', '', regex=False)
         df_transformed['HS%'] = pd.to_numeric(df_transformed['HS%'].str.replace('%', ''), errors='coerce') / 100.0
 
     if 'CL%' in df_transformed.columns:
+        df_transformed['CL%'] = df_transformed['CL%'].astype(str).str.replace('%', '', regex=False)
         df_transformed['CL%'] = pd.to_numeric(df_transformed['CL%'].str.replace('%', ''), errors='coerce') / 100.0
 
     if 'CL' in df_transformed.columns:
-            df_transformed.loc[df_transformed['CL'] == '', 'CL'] = '0/0'
+        df_transformed['CL'] = df_transformed['CL'].fillna('0/0') 
+        df_transformed.loc[df_transformed['CL'] == 'nan', 'CL'] = '0/0'
 
     if 'R2.0' in df_transformed.columns:
-            df_transformed.loc[df_transformed['R2.0'] == '', 'R2.0'] = 0
+        df_transformed['R2.0'] = df_transformed['R2.0'].fillna(0.0)
+
+    cols_int_fill = ['Rnd', 'K', 'D', 'A', 'FK', 'FD', 'KMax']
+    for col in cols_int_fill:
+        if col in df_transformed.columns:
+            df_transformed[col] = df_transformed[col].fillna(0)
 
     # --- Nova Lógica de Metadados ---
     df_transformed['region'] = region
