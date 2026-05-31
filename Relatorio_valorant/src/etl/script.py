@@ -121,21 +121,21 @@ def transform_data_pre_sql(df: pd.DataFrame, region: str, year: int, tournament_
 
 def sanitize_dataframe(df):
     """
-    Limpa strings e remove acentos de colunas críticas para evitar erros de encoding.
+    Limpa strings e remove acentos apenas das colunas textuais críticas.
     """
     df_clean = df.copy()
     
-    # Função interna para remover acentos
     def remove_accents(input_str):
         if not isinstance(input_str, str): return input_str
         nfkd_form = unicodedata.normalize('NFKD', input_str)
         return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
-    # Aplicar limpeza em todas as colunas de texto
-    for col in df_clean.select_dtypes(include=['object', 'string']).columns:
-        df_clean[col] = df_clean[col].astype(str).apply(remove_accents)
-        # Remove caracteres residuais que o banco possa rejeitar
-        df_clean[col] = df_clean[col].str.replace(r'[^\x00-\x7F]+', '', regex=True)
+    text_columns = ['Player', 'Team', 'region', 'tournament_id']
+    
+    for col in text_columns:
+        if col in df_clean.columns:
+            df_clean[col] = df_clean[col].astype(str).apply(remove_accents)
+            df_clean[col] = df_clean[col].str.replace(r'[^\x00-\x7F]+', '', regex=True)
     
     return df_clean
 
