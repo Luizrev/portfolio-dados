@@ -69,54 +69,50 @@ def transform_data_pre_sql(df: pd.DataFrame, region: str, year: int, tournament_
     logging.info(f"Transformando dados de {tournament_name} ({year})...")
     df_transformed = df.copy()
 
+    # 1. Substitui qualquer string puramente vazia ou cheia de espaços por NaN
     df_transformed = df_transformed.replace(r'^\s*$', pd.NA, regex=True)
-
     df_transformed = df_transformed.drop(columns=['Agents'], errors='ignore')
-    # Limpar a coluna KAST
-    if 'KAST' in df_transformed.columns:
-        df_transformed['KAST'] = df_transformed['KAST'].astype(str).str.replace('%', '', regex=False)
-
-    # Colunas para converter para tipo numérico
+    
+    # 2. Lista completa de numéricos
     cols_to_convert = ['R', 'ACS', 'K:D', 'ADR', 'KPR', 'APR', 'FKPR', 'FDPR', 'K', 'D', 'A', 'FK', 'FD', '+/-', 'KAST', 'KMax', 'Rnd', 'R2.0']
 
+    # 3. Força conversão antes de qualquer matemática
     for col in cols_to_convert:
         if col in df_transformed.columns:
-            df_transformed[col] = pd.to_numeric(df_transformed[col], errors='coerce')
+            # O pulo do gato: remove % de qualquer coluna (como KAST) e força número
+            df_transformed[col] = pd.to_numeric(df_transformed[col].astype(str).str.replace('%', '', regex=False), errors='coerce')
 
-    # Converte KAST para decimal após garantir que é numérico
+    # Ajuste decimal do KAST
     if 'KAST' in df_transformed.columns:
         df_transformed['KAST'] /= 100.0
 
-    if 'HS%' in df_transformed.columns:
-        df_transformed['HS%'] = df_transformed['HS%'].astype(str).str.replace('%', '', regex=False)
-        df_transformed['HS%'] = pd.to_numeric(df_transformed['HS%'].str.replace('%', ''), errors='coerce') / 100.0
+    # 4. Tratamento das porcentagens específicas
+    for col_perc in ['HS%', 'CL%']:
+        if col_perc in df_transformed.columns:
+            df_transformed[col_perc] = pd.to_numeric(df_transformed[col_perc].astype(str).str.replace('%', '', regex=False), errors='coerce') / 100.0
 
-    if 'CL%' in df_transformed.columns:
-        df_transformed['CL%'] = df_transformed['CL%'].astype(str).str.replace('%', '', regex=False)
-        df_transformed['CL%'] = pd.to_numeric(df_transformed['CL%'].str.replace('%', ''), errors='coerce') / 100.0
-
+    # 5. Tratamento para exibição no Streamlit
     if 'CL' in df_transformed.columns:
-        df_transformed['CL'] = df_transformed['CL'].fillna('0/0') 
-        df_transformed.loc[df_transformed['CL'] == 'nan', 'CL'] = '0/0'
+        df_transformed['CL'] = df_transformed['CL'].fillna('0/0')
+        df_transformed.loc[df_transformed['CL'].astype(str) == 'nan', 'CL'] = '0/0'
 
     if 'R2.0' in df_transformed.columns:
         df_transformed['R2.0'] = df_transformed['R2.0'].fillna(0.0)
 
+    # Zera contagens vazias
     cols_int_fill = ['Rnd', 'K', 'D', 'A', 'FK', 'FD', 'KMax']
     for col in cols_int_fill:
         if col in df_transformed.columns:
             df_transformed[col] = df_transformed[col].fillna(0)
 
-    # --- Nova Lógica de Metadados ---
+    # 6. Metadados e Chave Primária segura
     df_transformed['region'] = region
     df_transformed['year'] = year
     df_transformed['tournament_id'] = tournament_name
     
-    # Criando a Chave Primária para Governança
-    # Ex: "aspas_leviatan_vctamericasstage2_2025"
     df_transformed['unique_id'] = (
-        df_transformed['Player'].str.lower().str.replace(' ', '') + "_" + 
-        df_transformed['Team'].str.lower().str.replace(' ', '') + "_" + 
+        df_transformed['Player'].astype(str).str.lower().str.replace(' ', '', regex=False) + "_" + 
+        df_transformed['Team'].astype(str).str.lower().str.replace(' ', '', regex=False) + "_" + 
         tournament_name.lower().replace(' ', '') + "_" + 
         str(year)
     )
